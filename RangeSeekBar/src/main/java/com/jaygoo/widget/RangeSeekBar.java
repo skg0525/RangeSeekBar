@@ -4,12 +4,19 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.os.Parcelable;
+import android.support.v4.view.ViewCompat;
+import android.support.v4.view.accessibility.AccessibilityNodeInfoCompat;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
+
+import java.util.List;
 
 import static com.jaygoo.widget.SeekBar.INDICATOR_MODE_ALWAYS_SHOW;
 
@@ -31,19 +38,16 @@ public class RangeSeekBar extends View {
 
     private int seekBarMode;
 
-    //刻度模式：number根据数字实际比例排列；other 均分排列
+    //Scale mode: number is arranged according to the actual scale of the number; other is evenly arranged
     private int tickMarkMode;
 
-    //默认为1，当大于1时自动切回刻度模式
     //The default is 1, and when it is greater than 1,
     // it will automatically switch back to the scale mode
     private int tickMarkNumber = 1;
 
-    //刻度与进度条间的间距
     //The spacing between the tick mark and the progress bar
     private int tickMarkTextMargin;
 
-    //刻度文字与提示文字的大小
     //tick mark text and prompt text size
     private int tickMarkTextSize;
 
@@ -53,19 +57,15 @@ public class RangeSeekBar extends View {
 
     private int tickMarkInRangeTextColor;
 
-    //刻度上显示的文字
     //The texts displayed on the scale
     private CharSequence[] tickMarkTextArray;
 
-    //进度条圆角
     //radius of progress bar
     private float progressRadius;
 
-    //进度中进度条的颜色
     //the color of seekBar in progress
     private int progressColor;
 
-    //默认进度条颜色
     //the default color of the progress bar
     private int progressDefaultColor;
 
@@ -77,7 +77,6 @@ public class RangeSeekBar extends View {
 
     private int minRangeCells;
 
-    //用户设置的真实的最大值和最小值
     //True values set by the user
     private float minProgress, maxProgress;
 
@@ -90,9 +89,6 @@ public class RangeSeekBar extends View {
     private float touchDownX;
     private float cellsPercent;
     private float reservePercent;
-    // if min < 0
-//    private float offsetValue;
-//    private float maxPositiveValue, minPositiveValue;
     private boolean isEnable = true;
     private boolean isScaleThumb = false;
     private Paint paint = new Paint();
@@ -103,6 +99,11 @@ public class RangeSeekBar extends View {
     private SeekBar currTouchSB;
     private OnRangeChangedListener callback;
 
+
+    /**
+     * Explore by touch helper, used to expose contents for accessibility.
+     */
+    private SeekBarAccessHelper mSeekBarAccessHelper;
 
     public RangeSeekBar(Context context) {
         this(context, null);
@@ -124,6 +125,10 @@ public class RangeSeekBar extends View {
         setRange(minProgress, maxProgress, rangeInterval, tickMarkNumber);
 
         initProgressLine();
+
+        // Set up accessibility helper class.
+        mSeekBarAccessHelper = new SeekBarAccessHelper(this);
+        ViewCompat.setAccessibilityDelegate(this, mSeekBarAccessHelper);
     }
 
     private void initProgressLine() {
@@ -721,6 +726,8 @@ public class RangeSeekBar extends View {
                 changeThumbActivateState(false);
                 break;
         }
+        mSeekBarAccessHelper.invalidateVirtualViewId(1);
+     //   mSeekBarAccessHelper.getEventForVirtualViewId(1, event.getAction());
         return super.onTouchEvent(event);
     }
 
@@ -940,6 +947,98 @@ public class RangeSeekBar extends View {
     public void setTypeface(Typeface typeFace){
         paint.setTypeface(typeFace);
     }
+
+
+    /**
+     * Implementation of {@link ExploreByTouchHelper} that exposes the contents
+     * of a to accessibility services by mapping each bar
+     * to a virtual view.
+     */
+    private class SeekBarAccessHelper extends ExploreByTouchHelper {
+        public SeekBarAccessHelper(View parentView) {
+            super(parentView);
+        }
+
+        @Override
+        protected int getVirtualViewIdAt(float x, float y) {
+            // We already map (x,y) to bar index for onTouchEvent().
+
+            if(leftSB.collide(x,y)){
+                return  1;
+            } if (rightSB != null &&rightSB.collide(x,y)){
+                return 2;
+            }
+
+            return ExploreByTouchHelper.INVALID_ID;
+        }
+
+        @Override
+        protected void getVisibleVirtualViewIds(List<Integer> virtualViewIds) {
+            virtualViewIds.add(1);
+            if(rightSB !=null){
+                virtualViewIds.add(2);
+            }
+        }
+
+        private String getDescriptionForIndex(int index) {
+            String description = "thumb";
+            try {
+                if(index == 1){
+                    description =  "left" + description + leftSB.getThumbValue();
+                }
+                else if (rightSB!=null && index == 2){
+                    description = "right" + description + rightSB.getThumbValue();
+                }
+            } catch (Exception e) {
+                //do nothing
+            }
+            return description;
+        }
+
+        @Override
+        protected void populateEventForVirtualViewId(int virtualViewId, AccessibilityEvent event) {
+            final String desc = getDescriptionForIndex(virtualViewId);
+            event.setContentDescription(desc);
+        }
+
+        @Override
+        protected void populateNodeForVirtualViewId(
+                int virtualViewId, AccessibilityNodeInfoCompat node) {
+            // Node and event descriptions are usually identical.
+            final String desc = getDescriptionForIndex(virtualViewId);
+            node.setContentDescription(desc);
+
+                // Since the user can tap a bar, add the CLICK action.
+                node.addAction(AccessibilityNodeInfoCompat.ACTION_CLICK);
+            node.addAction(AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS);
+            node.addAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_FORWARD);
+            node.addAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_BACKWARD);
+
+
+            Rect bounds = null;
+            if(virtualViewId == 1){
+                bounds = leftSB.getThumbBounds();
+            }
+            else if (rightSB!=null && virtualViewId == 2){
+                bounds = rightSB.getThumbBounds();
+            }
+            // Reported bounds should be consistent with onDraw().
+            node.setBoundsInParent(bounds);
+        }
+
+        @Override
+        protected boolean performActionForVirtualViewId(int virtualViewId, int action) {
+            switch (action) {
+                case AccessibilityNodeInfoCompat.ACTION_CLICK:
+                    // Click handling should be consistent with onTouchEvent().
+                    // onBarClicked(virtualViewId);
+                    return true;
+            }
+            // Only need to handle actions added in populateNode.
+            return false;
+        }
+    }
+
 
 
 }

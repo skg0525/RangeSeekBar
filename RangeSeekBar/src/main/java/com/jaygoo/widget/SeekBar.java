@@ -16,9 +16,14 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.view.ViewCompat;
+import android.support.v4.view.accessibility.AccessibilityNodeInfoCompat;
 import android.util.AttributeSet;
+import android.view.View;
+import android.view.accessibility.AccessibilityEvent;
 
 import java.text.DecimalFormat;
+import java.util.List;
 
 
 /**
@@ -84,12 +89,70 @@ public class SeekBar {
     private DecimalFormat indicatorTextDecimalFormat;
 
 
+    public Rect getIndicatorRect() {
+        return indicatorRect;
+    }
+
+    /**
+     *
+     * Author SKG
+     * Returns the bounding box of the specified Entry in the specified DataSet. Returns null if the Entry could not be
+     * found in the charts data.  Performance-intensive code should use void getBarBounds(BarEntry, RectF) instead.
+     *
+     * @return
+     */
+    public Rect getStartBounds(){
+        Rect bounds = new Rect();
+
+
+            bounds.set(left, top, right, bottom);
+
+        return bounds;
+    }
+
+
+    public Rect getThumbBounds(){
+        Rect bounds = new Rect();
+        int offset = (int) (lineWidth * currPercent);
+        bounds.set(left + offset , top, right +offset, bottom);
+
+        return bounds;
+    }
+
+
+    public String getThumbValue(){
+        String text2Draw = userText2Draw;
+        SeekBarState[] states = rangeSeekBar.getRangeSeekBarState();
+        if (isLeft) {
+            if (userText2Draw == null) {
+                if (indicatorTextDecimalFormat != null){
+                    text2Draw = indicatorTextDecimalFormat.format(states[0].value);
+                }else {
+                    text2Draw = states[0].indicatorText;
+                }
+            }
+        } else {
+            if (userText2Draw == null) {
+                if (indicatorTextDecimalFormat != null){
+                    text2Draw = indicatorTextDecimalFormat.format(states[1].value);
+                }else {
+                    text2Draw = states[1].indicatorText;
+                }
+            }
+        }
+        if (indicatorTextStringFormat != null){
+            text2Draw = String.format(indicatorTextStringFormat, text2Draw);
+        }
+        return text2Draw;
+    }
+
     public SeekBar(RangeSeekBar rangeSeekBar, AttributeSet attrs, boolean isLeft) {
         this.rangeSeekBar = rangeSeekBar;
         this.isLeft = isLeft;
         initAttrs(attrs);
         initVariables();
         initBitmap();
+
     }
 
     private void initAttrs(AttributeSet attrs){
@@ -538,4 +601,5 @@ public class SeekBar {
     public float getThumbScaleRatio() {
         return thumbScaleRatio;
     }
+
 }
