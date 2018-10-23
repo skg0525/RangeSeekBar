@@ -46,9 +46,9 @@ public class VerticalDemoActivity extends AppCompatActivity {
                 }
             });
         }
-        seekbar1 = (RangeSeekBar)findViewById(R.id.seekbar1);
-        seekbar2 = (RangeSeekBar)findViewById(R.id.seekbar2);
-        seekbar3 = (RangeSeekBar)findViewById(R.id.seekbar3);
+        seekbar1 = findViewById(R.id.seekbar1);
+        seekbar2 = findViewById(R.id.seekbar2);
+        seekbar3 = findViewById(R.id.seekbar3);
 
     }
 }
