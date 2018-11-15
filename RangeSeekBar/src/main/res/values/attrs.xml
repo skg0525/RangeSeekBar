@@ -9,6 +9,15 @@
         <!--The minimum-->
         <attr name="rsb_min" format="float"/>
 
+        <!--The min allowed value for thumb-->
+        <attr name="rsb_min_allowed" format="float"/>
+
+        <!--The min allowed flag defines if its set or not-->
+        <attr name="rsb_min_allowed_enabled" format="enum">
+            <enum name="enable" value="1"/>
+            <enum name="disable" value="2"/>
+        </attr>
+
         <!--RangeSeekBar mode, single is normal seekBar, range is RangeSeekBar-->
         <attr name="rsb_mode" format="enum">
             <enum name="single" value="1"/>

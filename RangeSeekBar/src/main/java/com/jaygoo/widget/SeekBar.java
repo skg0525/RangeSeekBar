@@ -105,7 +105,7 @@ public class SeekBar {
         Rect bounds = new Rect();
 
 
-            bounds.set(left, top, right, bottom);
+        bounds.set(left, top, right, bottom);
 
         return bounds;
     }
@@ -232,10 +232,10 @@ public class SeekBar {
      * @param canvas Canvas
      * @param text2Draw Indicator text
      */
-    private void drawIndicator(Canvas canvas, String text2Draw){
+    private void drawIndicator(Canvas canvas, String text2Draw, float thumbTextOffset){
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(indicatorBackgroundColor);
-        int contentWidth = indicatorTextRect.width() + indicatorPaddingLeft + indicatorPaddingRight;
+        int contentWidth = indicatorTextRect.width() + indicatorPaddingLeft + indicatorPaddingRight + (int) thumbTextOffset;
         int realIndicatorWidth;
         if (indicatorWidth <= 0) {
             realIndicatorWidth = contentWidth;
@@ -319,7 +319,7 @@ public class SeekBar {
      *
      * @param canvas Canvas
      */
-    protected void draw(Canvas canvas) {
+    protected void draw(Canvas canvas, float thumbTextOffset) {
         int offset = (int) (lineWidth * currPercent);
         canvas.save();
         canvas.translate(offset, 0);
@@ -353,7 +353,7 @@ public class SeekBar {
             setShowIndicatorEnable(true);
         }
         if (isShowIndicator) {
-            drawIndicator(canvas, text2Draw);
+            drawIndicator(canvas, text2Draw, thumbTextOffset);
         }
         drawThumb(canvas);
         canvas.restore();
@@ -370,7 +370,7 @@ public class SeekBar {
      */
     private void drawThumb(Canvas canvas) {
         if (thumbInactivatedBitmap != null && !isActivate){
-                canvas.drawBitmap(thumbInactivatedBitmap, 0, rangeSeekBar.getLineTop() + (rangeSeekBar.getProgressHeight() - thumbSize) / 2, null);
+            canvas.drawBitmap(thumbInactivatedBitmap, 0, rangeSeekBar.getLineTop() + (rangeSeekBar.getProgressHeight() - thumbSize) / 2, null);
         }else if (thumbBitmap != null){
             canvas.drawBitmap(thumbBitmap, 0, rangeSeekBar.getLineTop() + (rangeSeekBar.getProgressHeight() - thumbSize) / 2, null);
         }

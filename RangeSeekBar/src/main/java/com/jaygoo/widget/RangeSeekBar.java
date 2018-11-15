@@ -11,10 +11,10 @@ import android.os.Parcelable;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.view.accessibility.AccessibilityNodeInfoCompat;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.accessibility.AccessibilityEvent;
-import android.view.accessibility.AccessibilityNodeInfo;
 
 import java.util.List;
 
@@ -80,6 +80,10 @@ public class RangeSeekBar extends View {
     //True values set by the user
     private float minProgress, maxProgress;
 
+    //SKG: these variable will define min allowed value for thumb and also if its enabled or not.
+    private float minAllowedValue;
+    private int minAllowedEnabled;
+
     //****************** the above is attr value  ******************//
 
     // the progress width
@@ -99,6 +103,7 @@ public class RangeSeekBar extends View {
     private SeekBar currTouchSB;
     private OnRangeChangedListener callback;
 
+    private Paint movingTextPaint = new Paint();
 
     /**
      * Explore by touch helper, used to expose contents for accessibility.
@@ -152,6 +157,8 @@ public class RangeSeekBar extends View {
         seekBarMode = t.getInt(R.styleable.RangeSeekBar_rsb_mode, SEEKBAR_MODE_RANGE);
         minProgress = t.getFloat(R.styleable.RangeSeekBar_rsb_min, 0);
         maxProgress = t.getFloat(R.styleable.RangeSeekBar_rsb_max, 100);
+        minAllowedEnabled = t.getInt(R.styleable.RangeSeekBar_rsb_min_allowed_enabled, SEEKBAR_MODE_RANGE);
+        minAllowedValue = t.getFloat(R.styleable.RangeSeekBar_rsb_min_allowed, 0);
         rangeInterval = t.getFloat(R.styleable.RangeSeekBar_rsb_range_interval, 0);
         progressColor = t.getColor(R.styleable.RangeSeekBar_rsb_progress_color, 0xFF4BD962);
         progressRadius = (int) t.getDimension(R.styleable.RangeSeekBar_rsb_progress_radius, -1);
@@ -268,37 +275,76 @@ public class RangeSeekBar extends View {
         if (leftSB != null && rightSB != null) {
             float a = leftSB.left + leftSB.getThumbSize() / 2 + lineWidth * leftSB.currPercent;
             float b = rightSB.left + rightSB.getThumbSize() / 2 + lineWidth * rightSB.currPercent;
-            float middle = (a + b) /2;
+            float middle = (a + b) / 2;
             final String text2Draw = "Blocked";
+            movingTextPaint.setColor(leftSB.getIndicatorTextColor());
             float x = 0;
-            paint.setColor(progressDefaultColor);
-            //平分显示
+
             if (tickMarkMode == TRICK_MARK_MODE_OTHER) {
-                if (tickMarkGravity == TRICK_MARK_GRAVITY_RIGHT){
-                    x = middle - paint.measureText(text2Draw);
-                }else if (tickMarkGravity == TRICK_MARK_GRAVITY_CENTER){
-                    x = middle - paint.measureText(text2Draw) / 2;
-                }else {
+                if (tickMarkGravity == TRICK_MARK_GRAVITY_RIGHT) {
+                    x = middle - movingTextPaint.measureText(text2Draw);
+                } else if (tickMarkGravity == TRICK_MARK_GRAVITY_CENTER) {
+                    x = middle - movingTextPaint.measureText(text2Draw) / 2;
+                } else {
                     x = middle;
                 }
             }
-            float y = getLineTop() +  tickMarkTextMargin;
-            canvas.drawText(text2Draw, x, y, paint);
 
+            //SKG: Dont draw on edge or else text will be chopped off
+            if (x < 0) {
+                //Draw text at start with 5 offset
+                x = 0;
+            } else if (x + (movingTextPaint.measureText(text2Draw) / 2) > lineWidth) {
+                x = lineWidth - (movingTextPaint.measureText(text2Draw) / 2);
+            }
+
+            float y = getLineTop() + tickMarkTextMargin;
+            canvas.drawText(text2Draw, x, y, movingTextPaint);
+
+        }
+
+        //SKG: avoid thumb text overlap,
+        //If distance between two thumbs is less than the size of the left thumb text + right thumb text, that means its overlapping.
+        boolean addOffsetToLeft = true;
+        float thumbTextOffset = 0;
+        if (leftSB != null && rightSB != null) {
+            float a = leftSB.left + leftSB.getThumbSize() / 2 + lineWidth * leftSB.currPercent;
+            float b = rightSB.left + rightSB.getThumbSize() / 2 + lineWidth * rightSB.currPercent;
+            float diff = b - a;
+            float offset = 130;
+            if (diff < (offset / 2)) {
+                thumbTextOffset = offset + 10;
+            } else if (diff < offset) {
+                thumbTextOffset = (offset / 2) + 10;
+            }
+            //This will determine if we want to add offset to left or right thumb.
+            if (b > lineWidth - (offset/2)) {
+                addOffsetToLeft = true;
+            } else if (a < offset) {
+                addOffsetToLeft = false;
+            }
         }
 
         //draw left SeekBar
-        if (leftSB.getIndicatorShowMode() == INDICATOR_MODE_ALWAYS_SHOW){
+        if (leftSB.getIndicatorShowMode() == INDICATOR_MODE_ALWAYS_SHOW) {
             leftSB.setShowIndicatorEnable(true);
         }
-        leftSB.draw(canvas);
+        if (addOffsetToLeft) {
+            leftSB.draw(canvas, thumbTextOffset);
+        } else {
+            leftSB.draw(canvas, 0);
+        }
 
         //draw right SeekBar
         if (rightSB != null) {
             if (rightSB.getIndicatorShowMode() == INDICATOR_MODE_ALWAYS_SHOW) {
                 rightSB.setShowIndicatorEnable(true);
             }
-            rightSB.draw(canvas);
+            if (!addOffsetToLeft) {
+                rightSB.draw(canvas, -thumbTextOffset);
+            } else {
+                rightSB.draw(canvas, 0);
+            }
         }
     }
 
@@ -306,6 +352,10 @@ public class RangeSeekBar extends View {
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(progressDefaultColor);
         paint.setTextSize(tickMarkTextSize);
+
+        //SKG: this paint is used for drawing word "blocked" which is also a moving text and centers between two thumb.
+        movingTextPaint.setStyle(Paint.Style.FILL);
+        movingTextPaint.setTextSize(Utils.dp2px(getContext(),14));
     }
 
     public void setValue(float value) {
@@ -328,10 +378,11 @@ public class RangeSeekBar extends View {
         float range = maxProgress - minProgress;
 
         if (tickMarkNumber > 1) {
-            int percent = (int)(range / tickMarkNumber);
-            if ((int)Math.abs(leftValue - minProgress) % percent != 0 || (int)Math.abs(rightValue - minProgress) % percent != 0 ){
-                throw new IllegalArgumentException("The current value must be at the equal point");
-            }
+            //SKG: we dont need this since we have range of 6 and tickmark 12.
+//            int percent = (int)(range / tickMarkNumber);
+//            if ((int)Math.abs(leftValue - minProgress) % percent != 0 || (int)Math.abs(rightValue - minProgress) % percent != 0 ){
+//                throw new IllegalArgumentException("The current value must be at the equal point");
+//            }
             leftSB.currPercent = Math.abs(leftValue - minProgress) / range;
             if (rightSB != null) {
                 rightSB.currPercent = Math.abs(rightValue - minProgress) / range;
@@ -662,7 +713,12 @@ public class RangeSeekBar extends View {
                             }
                         }
                     }
-                    leftSB.slide(percent);
+                    //SKG: since we have to not letting the thumb go less than 30 mins, which is 1 cell in terms of rangeseekbar,
+                    //we should ignore move less than cellsPercent * minAllowedValue.
+                    //Making it dynamic so if in future business say min should be an hour then we just change in XML minAllowedValue to 2 and done.
+                    if (minAllowedEnabled == SEEKBAR_MODE_RANGE || percent >= cellsPercent * minAllowedValue) {
+                        leftSB.slide(percent);
+                    }
                     leftSB.setShowIndicatorEnable(true);
                     //Intercept parent TouchEvent
                     if (getParent() != null) {
@@ -750,7 +806,7 @@ public class RangeSeekBar extends View {
                 break;
         }
         mSeekBarAccessHelper.invalidateVirtualViewId(1);
-     //   mSeekBarAccessHelper.getEventForVirtualViewId(1, event.getAction());
+        //   mSeekBarAccessHelper.getEventForVirtualViewId(1, event.getAction());
         return super.onTouchEvent(event);
     }
 
@@ -1008,9 +1064,15 @@ public class RangeSeekBar extends View {
             try {
                 if(index == 1){
                     description =  "left" + description + leftSB.getThumbValue();
+                    if(!isEnable){
+                        description = description + "disabled";
+                    }
                 }
                 else if (rightSB!=null && index == 2){
                     description = "right" + description + rightSB.getThumbValue();
+                    if(!isEnable){
+                        description = description + "disabled";
+                    }
                 }
             } catch (Exception e) {
                 //do nothing
@@ -1031,12 +1093,14 @@ public class RangeSeekBar extends View {
             final String desc = getDescriptionForIndex(virtualViewId);
             node.setContentDescription(desc);
 
+            //SKG: add actions only if enabled.
+            if(isEnable) {
                 // Since the user can tap a bar, add the CLICK action.
                 node.addAction(AccessibilityNodeInfoCompat.ACTION_CLICK);
-            node.addAction(AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS);
-            node.addAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_FORWARD);
-            node.addAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_BACKWARD);
-
+                node.addAction(AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS);
+                node.addAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_FORWARD);
+                node.addAction(AccessibilityNodeInfoCompat.ACTION_SCROLL_BACKWARD);
+            }
 
             Rect bounds = null;
             if(virtualViewId == 1){
