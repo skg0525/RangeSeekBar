@@ -245,27 +245,6 @@ public class RangeSeekBar extends View {
             }
         }
 
-        //SKG: Draw Text Blocked between the two thumbs
-        if (1 == 1) {
-            int middle = lineWidth / 2;
-                final String text2Draw = "blocked";
-                float x = 0;
-                paint.setColor(progressDefaultColor);
-                //平分显示
-                if (tickMarkMode == TRICK_MARK_MODE_OTHER) {
-                    if (tickMarkGravity == TRICK_MARK_GRAVITY_RIGHT){
-                        x = middle - paint.measureText(text2Draw);
-                    }else if (tickMarkGravity == TRICK_MARK_GRAVITY_CENTER){
-                        x = middle - paint.measureText(text2Draw) / 2;
-                    }else {
-                        x = middle;
-                    }
-                }
-                float y = getLineTop() +  tickMarkTextMargin;
-                canvas.drawText(text2Draw, x, y, paint);
-
-        }
-
         //绘制进度条
         // draw the progress bar
         paint.setColor(progressDefaultColor);
@@ -283,6 +262,29 @@ public class RangeSeekBar extends View {
             foregroundLineRect.right = leftSB.left + leftSB.getThumbSize() / 2 + lineWidth * leftSB.currPercent;
             foregroundLineRect.bottom = getLineBottom();
             canvas.drawRoundRect(foregroundLineRect, progressRadius, progressRadius, paint);
+        }
+
+        //SKG: Draw Text Blocked between the two thumbs
+        if (leftSB != null && rightSB != null) {
+            float a = leftSB.left + leftSB.getThumbSize() / 2 + lineWidth * leftSB.currPercent;
+            float b = rightSB.left + rightSB.getThumbSize() / 2 + lineWidth * rightSB.currPercent;
+            float middle = (a + b) /2;
+            final String text2Draw = "Blocked";
+            float x = 0;
+            paint.setColor(progressDefaultColor);
+            //平分显示
+            if (tickMarkMode == TRICK_MARK_MODE_OTHER) {
+                if (tickMarkGravity == TRICK_MARK_GRAVITY_RIGHT){
+                    x = middle - paint.measureText(text2Draw);
+                }else if (tickMarkGravity == TRICK_MARK_GRAVITY_CENTER){
+                    x = middle - paint.measureText(text2Draw) / 2;
+                }else {
+                    x = middle;
+                }
+            }
+            float y = getLineTop() +  tickMarkTextMargin;
+            canvas.drawText(text2Draw, x, y, paint);
+
         }
 
         //draw left SeekBar

@@ -55,7 +55,7 @@
         app:rsb_progress_default_color="@color/colorPrimary"
         app:rsb_progress_color="@color/rsbColorThumbPressed"
         app:rsb_tick_mark_text_array="@array/wordsArray2"
-        app:rsb_tick_mark_text_margin="17dp"
+        app:rsb_tick_mark_text_margin="30dp"
         app:rsb_tick_mark_number="28"
         app:rsb_tick_mark_mode="other"
         app:rsb_tick_mark_gravity="center"
